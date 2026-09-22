@@ -9,6 +9,7 @@
 - A failed write in `BaseModel.to_json` or `BaseModel.to_config` now re-raises the original `OSError` subclass (e.g. `PermissionError`) instead of a plain `OSError`. The file path is in the exception's `__notes__`, not its message. ([#5895](https://github.com/pybamm-team/PyBaMM/pull/5895))
 - `get_size_distribution_parameters` sets the size distribution and minimum/maximum radii as `pybamm.Symbol`s of the particle radius, so they follow `"[input]"` but `float(param[...])` fails. Use `param.evaluate(pybamm.Parameter(...))`, or pass `R_n_av` and `R_p_av`, for numbers. ([#5917](https://github.com/pybamm-team/PyBaMM/pull/5917))
 - A custom `SubMesh` subclass given input-dependent limits now raises a `GeometryError` unless it sets `supports_symbolic_limits = True`. ([#5917](https://github.com/pybamm-team/PyBaMM/pull/5917))
+- `IDAKLUSolver` needs the next `pybammsolvers` release, whose IDAKLU backend can evaluate a Rust `CompiledModel`, to solve a model with `convert_to_format="rust"`. Upgrade `pybammsolvers` together with `pybamm`. ([#5961](https://github.com/pybamm-team/PyBaMM/pull/5961))
 - `pybamm` now ships platform wheels with its Rust core compiled in as `pybamm.rust._core`: one `cp311-abi3` wheel per platform for Python 3.11-3.15. Building from source or the sdist requires `cargo` 1.89+; `pip install --only-binary pybamm pybamm` forces a wheel. ([#5958](https://github.com/pybamm-team/PyBaMM/pull/5958))
 
 ## Deprecated
@@ -34,6 +35,7 @@
 - `pybamm.rust` exposes `ExprGraph`, `CompiledFunction` (one expression, or a named set via `compile_outputs`, with lane-batched trajectory and Hermite evaluation) and `CompiledJacobian`, with hand-written type stubs that `mypy.stubtest` pins against the built extension. ([#5958](https://github.com/pybamm-team/PyBaMM/pull/5958))
 - `Symbol.to_rust` lowers a discretised expression tree into a `pybamm.rust.ExprGraph`, covering the operators, matrix products, concatenations, `Conditional`, the specific functions, `RegPower` and 1D-3D interpolants. Spatial and tensor operators, such as `Norm` and `Component`, raise `NotImplementedError`. ([#5959](https://github.com/pybamm-team/PyBaMM/pull/5959))
 - `model.convert_to_format = "rust"` evaluates a model's rhs, algebraic, Jacobian and event functions through compiled Rust evaluators, for `ScipySolver`, `AlgebraicSolver` and EIS. ([#5960](https://github.com/pybamm-team/PyBaMM/pull/5960))
+- pybammsolvers gains an IDAKLU backend that evaluates a Rust `CompiledModel` through its C ABI, resolved at runtime so IDAKLU still loads without the Rust extension, with a Rust-backed Newton solver and output sensitivities projected natively in-solver. ([#5961](https://github.com/pybamm-team/PyBaMM/pull/5961))
 
 ## Bug fixes
 
@@ -86,6 +88,8 @@
 - Half-cell models with `"surface form"` and a non-isothermal `"thermal"` option now build, instead of failing with a `ShapeError`. ([#5540](https://github.com/pybamm-team/PyBaMM/pull/5540))
 - Input-dependent geometry limits on a submesh that needs numbers, such as the default `Uniform1DSubMesh`, raise a `GeometryError` pointing to `pybamm.SymbolicUniform1DSubMesh` instead of an `IndexError`, and input-dependent tab positions raise one instead of a `KeyError`. ([#5917](https://github.com/pybamm-team/PyBaMM/pull/5917))
 - `output_variables` with `/` in their names, such as `"Entropic change [V/K]"`, or with names that differ only in punctuation now work, including with the `compile` option. ([#5917](https://github.com/pybamm-team/PyBaMM/pull/5917))
+- `IDAKLUSolver` no longer reads one value past the inputs of a model without input parameters. Inputs with a different number of values than at set-up now raise a `SolverError` instead of being read at the set-up length. ([#5961](https://github.com/pybamm-team/PyBaMM/pull/5961))
+- `IDAKLUSolver` now finds a DAE's consistent initial sensitivities with one linear solve; at tight tolerances `IDACalcIC` could leave them zero at the first time point. A failed `IDACalcIC` is logged, and raises a `SolverError` when computing sensitivities. ([#5961](https://github.com/pybamm-team/PyBaMM/pull/5961))
 
 ## Optimizations
 
