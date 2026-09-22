@@ -28,6 +28,8 @@
 - When every sub-solver of `CompositeSolver` fails, their errors are chained to the raised `SolverError` as an `ExceptionGroup`, so each failure's traceback is kept. ([#5895](https://github.com/pybamm-team/PyBaMM/pull/5895))
 - Added `pybamm-core` (`packages/pybamm-rust`), a Rust expression compiler: an arena DAG with simplification, CSE and zero propagation, a typed IR, scalar and lane-batched interpreters, and forward-mode AD. CI runs `cargo test`, an MSRV check, `cargo fmt`, `cargo clippy` and CodeQL. ([#5956](https://github.com/pybamm-team/PyBaMM/pull/5956))
 - `pybamm-core` evaluates transcendentals through the platform C library, as CasADi does: bitwise identical across evaluation paths, last-bit differences across platforms. `pow` is exact for exponents `0`, `1`, `2` and `-1`; `erf`, `asinh` and IEEE 754-2019 `minimum`/`maximum` use `libm`. ([#5956](https://github.com/pybamm-team/PyBaMM/pull/5956))
+- `pybamm-core` compiles a model into a `CompiledModel`: a DAE with a symbolic Jacobian, per-output sparsity, coloured and lane-batched Jacobian sweeps, fused event and output tapes, and a versioned C ABI (`ffi.rs`) that a drift test pins against pybammsolvers' header. ([#5957](https://github.com/pybamm-team/PyBaMM/pull/5957))
+- `pybamm-core`'s reverse-mode AD values the primitives through the same definitions as the interpreters, and a test holds its partials bitwise to them. ([#5957](https://github.com/pybamm-team/PyBaMM/pull/5957))
 
 ## Bug fixes
 
