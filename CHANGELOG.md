@@ -9,6 +9,7 @@
 - A failed write in `BaseModel.to_json` or `BaseModel.to_config` now re-raises the original `OSError` subclass (e.g. `PermissionError`) instead of a plain `OSError`. The file path is in the exception's `__notes__`, not its message. ([#5895](https://github.com/pybamm-team/PyBaMM/pull/5895))
 - `get_size_distribution_parameters` sets the size distribution and minimum/maximum radii as `pybamm.Symbol`s of the particle radius, so they follow `"[input]"` but `float(param[...])` fails. Use `param.evaluate(pybamm.Parameter(...))`, or pass `R_n_av` and `R_p_av`, for numbers. ([#5917](https://github.com/pybamm-team/PyBaMM/pull/5917))
 - A custom `SubMesh` subclass given input-dependent limits now raises a `GeometryError` unless it sets `supports_symbolic_limits = True`. ([#5917](https://github.com/pybamm-team/PyBaMM/pull/5917))
+- `pybamm` now ships platform wheels with its Rust core compiled in as `pybamm.rust._core`: one `cp311-abi3` wheel per platform for Python 3.11-3.15. Building from source or the sdist requires `cargo` 1.89+; `pip install --only-binary pybamm pybamm` forces a wheel. ([#5958](https://github.com/pybamm-team/PyBaMM/pull/5958))
 
 ## Deprecated
 
@@ -30,6 +31,7 @@
 - `pybamm-core` evaluates transcendentals through the platform C library, as CasADi does: bitwise identical across evaluation paths, last-bit differences across platforms. `pow` is exact for exponents `0`, `1`, `2` and `-1`; `erf`, `asinh` and IEEE 754-2019 `minimum`/`maximum` use `libm`. ([#5956](https://github.com/pybamm-team/PyBaMM/pull/5956))
 - `pybamm-core` compiles a model into a `CompiledModel`: a DAE with a symbolic Jacobian, per-output sparsity, coloured and lane-batched Jacobian sweeps, fused event and output tapes, and a versioned C ABI (`ffi.rs`) that a drift test pins against pybammsolvers' header. ([#5957](https://github.com/pybamm-team/PyBaMM/pull/5957))
 - `pybamm-core`'s reverse-mode AD values the primitives through the same definitions as the interpreters, and a test holds its partials bitwise to them. ([#5957](https://github.com/pybamm-team/PyBaMM/pull/5957))
+- `pybamm.rust` exposes `ExprGraph`, `CompiledFunction` (one expression, or a named set via `compile_outputs`, with lane-batched trajectory and Hermite evaluation) and `CompiledJacobian`, with hand-written type stubs that `mypy.stubtest` pins against the built extension. ([#5958](https://github.com/pybamm-team/PyBaMM/pull/5958))
 
 ## Bug fixes
 
