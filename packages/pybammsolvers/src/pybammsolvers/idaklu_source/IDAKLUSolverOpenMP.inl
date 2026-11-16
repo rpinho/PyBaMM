@@ -80,9 +80,11 @@ IDAKLUSolverOpenMP<ExprSet>::IDAKLUSolverOpenMP(
   IDASVtolerances(ida_mem, rtol, avtol);
 
   // Set events
-  IDARootInit(ida_mem, number_of_events,
-              functions->events_read_yp.empty() ? events_eval<ExprSet>
-                                                : events_with_derivatives_eval<ExprSet>);
+  IDARootFn events = events_eval<ExprSet>;
+  if (!functions->events_read_yp.empty()) {
+    events = events_with_derivatives_eval<ExprSet>;
+  }
+  IDARootInit(ida_mem, number_of_events, events);
 
   // Set user data
   void *user_data = functions.get();
