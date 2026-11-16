@@ -19,6 +19,7 @@
 
 ## Features
 
+- `IDAKLUSolver` events can use time derivatives, e.g. `x.diff(pybamm.t)`, with `pybammsolvers` v0.13.0, which `pybamm` now requires. ([#6056](https://github.com/pybamm-team/PyBaMM/pull/6056))
 - `IDAKLUSolver`'s new `"sensitivity_error_control"` option, off by default, puts forward sensitivities in IDAS's local error test, so they also meet the solver's tolerances, at the cost of a longer solve. ([#5947](https://github.com/pybamm-team/PyBaMM/pull/5947))
 - Added the `IDAKLUSolver` option `upsampling_tolerance`, which adds times within each step until linear interpolation of the voltage is within tolerance (voltage-controlled steps add none). They go in `Solution.t_additive` and `Solution.t`. ([#5998](https://github.com/pybamm-team/PyBaMM/pull/5998))
 - `pybamm.Discretisation` resolves `pybamm.CoupledVariable`s in model equations by default (`resolve_coupled_variables=True`), once per shared subexpression. A missing target now raises `ValueError` instead of `DiscretisationError`. ([#6002](https://github.com/pybamm-team/PyBaMM/pull/6002))
@@ -29,6 +30,7 @@
 
 ## Bug fixes
 
+- `symbol.diff(pybamm.t)` now works through spatial operators, functions, concatenations, `CoupledVariable`s, and variables with a reference or bounds. `CoupledVariable`s in events are now resolved. ([#6056](https://github.com/pybamm-team/PyBaMM/pull/6056))
 - One-state hysteresis models now take their initial potentials from the OCP at the initial hysteresis state, not the equilibrium OCP, so an inconsistent equilibrium OCP no longer stops them starting. ([#6042](https://github.com/pybamm-team/PyBaMM/pull/6042))
 - An SOC start of a composite electrode with a one-state hysteresis phase now puts its phases in equilibrium on the OCP at the initial hysteresis state, and `cache_esoh` re-solves when that state changes. ([#6034](https://github.com/pybamm-team/PyBaMM/pull/6034))
 - `pybamm.parameter_sets` and `pybamm.dispatch.models` now list names in sorted order. Before, the order depended on which installed package was found first. ([#5911](https://github.com/pybamm-team/PyBaMM/pull/5911))

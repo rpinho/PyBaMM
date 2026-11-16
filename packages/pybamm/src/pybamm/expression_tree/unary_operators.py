@@ -527,6 +527,13 @@ class SpatialOperator(UnaryOperator):
     # Names of __init__ args (besides the child) to serialise; subclasses set this.
     _json_extra_fields: tuple[str, ...] = ()
 
+    def _diff(self, variable: pybamm.Symbol):
+        """See :meth:`pybamm.Symbol._diff()`."""
+        # Linear in the child and constant in time, so it commutes with d/dt
+        if variable == pybamm.t:
+            return self._unary_new_copy(self.child.diff(variable))
+        return super()._diff(variable)
+
     def to_json(self):
         json_dict = super().to_json()
         for field in self._json_extra_fields:
@@ -665,6 +672,11 @@ class GradientSquared(SpatialOperator):
 
     def __init__(self, child):
         super().__init__("grad squared", child)
+
+    def _diff(self, variable: pybamm.Symbol):
+        """See :meth:`pybamm.Symbol._diff()`."""
+        # Not linear in the child, unlike the other spatial operators
+        raise NotImplementedError
 
     def _evaluates_on_edges(self, dimension: str) -> bool:
         """See :meth:`pybamm.Symbol._evaluates_on_edges()`."""

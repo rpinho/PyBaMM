@@ -55,7 +55,7 @@ class Discretisation:
         Default is False.
     resolve_coupled_variables : bool, optional
         If True, resolve CoupledVariables in rhs, algebraic, initial_conditions,
-        and boundary_conditions before processing. Default is True.
+        boundary_conditions and events before processing. Default is True.
     """
 
     def __init__(
@@ -314,8 +314,8 @@ class Discretisation:
 
     def _resolve_coupled_variables_in_model(self, model, inplace):
         """
-        Resolve CoupledVariables in rhs, algebraic, initial_conditions, and
-        boundary_conditions.
+        Resolve CoupledVariables in rhs, algebraic, initial_conditions,
+        boundary_conditions and events.
 
         Parameters
         ----------
@@ -346,6 +346,10 @@ class Discretisation:
             }
             for var, bcs in model.boundary_conditions.items()
         }
+        events = [
+            pybamm.Event(event.name, resolve(event.expression), event.event_type)
+            for event in model.events
+        ]
 
         # the shared cache may return an equal node from another equation, so
         # compare by equality rather than identity
@@ -361,6 +365,10 @@ class Discretisation:
                 for var, bcs in model.boundary_conditions.items()
                 for side, (expr, _) in bcs.items()
             )
+            and all(
+                new.expression == event.expression
+                for new, event in zip(events, model.events, strict=True)
+            )
         )
         if unchanged:
             return model
@@ -373,6 +381,7 @@ class Discretisation:
         model.algebraic = algebraic
         model.initial_conditions = initial_conditions
         model.boundary_conditions = boundary_conditions
+        model.events = events
         return model
 
     def set_variable_slices(self, variables):
@@ -1250,9 +1259,9 @@ class Discretisation:
             raise pybamm.DiscretisationError("Invalid direction")
 
     def _disc_variable_dot(self, symbol, disc_children):
-        # Add symbol's reference and multiply by the symbol's scale
-        # so that the state vector is of order 1
-        return symbol.reference + symbol.scale * pybamm.StateVectorDot(
+        # Multiply by the symbol's scale so that the state vector is of order 1;
+        # the constant reference drops out of the time derivative
+        return symbol.scale * pybamm.StateVectorDot(
             *self.y_slices[symbol.get_variable()],
             domains=symbol.domains,
         )

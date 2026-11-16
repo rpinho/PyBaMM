@@ -5,6 +5,7 @@
 #include "../Expressions.hpp"
 #include <casadi/casadi.hpp>
 #include <casadi/core/function.hpp>
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 
@@ -176,6 +177,13 @@ public:
     this->alg_res = static_cast<Expression*>(&alg_res_casadi_);
     this->alg_jac = static_cast<Expression*>(&alg_jac_casadi_);
     this->upsampling_fcn = static_cast<Expression*>(&upsampling_casadi_);
+    if (events.n_in() > 3) {
+      std::vector<bool> reads_yp = events.which_depends(
+        events.name_in(3), {events.name_out(0)}, 1, true);
+      if (std::find(reads_yp.begin(), reads_yp.end(), true) != reads_yp.end()) {
+        this->events_read_yp = std::move(reads_yp);
+      }
+    }
     // NOTE: You must allocate ALL std::vector elements before taking references
     const bool deep_copy = setup_opts.num_solvers > 1;
     if (serialized_fcns != nullptr) {

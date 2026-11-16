@@ -250,6 +250,14 @@ class TestDiscretise:
         assert isinstance(var_dot_disc, pybamm.StateVectorDot)
         assert var_dot_disc.y_slices[0] == disc.y_slices[var][0]
 
+        # the constant reference drops out of a time derivative
+        var_ref = pybamm.Variable("var ref", scale=2, reference=3)
+        disc.y_slices[var_ref] = [slice(93, 94)]
+        var_ref_dot_disc = disc.process_symbol(var_ref.diff(pybamm.t))
+        np.testing.assert_array_equal(
+            var_ref_dot_disc.evaluate(y_dot=np.full(94, 5.0)), [[10.0]]
+        )
+
         # scalar
         scal = pybamm.Scalar(5)
         scal_disc = disc.process_symbol(scal)
