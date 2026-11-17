@@ -546,14 +546,32 @@ class TestUnaryOperators:
         with pytest.raises(NotImplementedError):
             spatial_a.diff(a)
 
-        # spatial operators commute with d/dt, except the nonlinear grad squared
+        # linear spatial operators commute with d/dt
         var = pybamm.Variable("var", domain="negative particle")
         surface = pybamm.boundary_value(var, "right")
         assert surface.diff(pybamm.t) == pybamm.boundary_value(
             var.diff(pybamm.t), "right"
         )
+        # nonlinear, or discretised with the child's boundary conditions
+        for operator in [
+            pybamm.grad_squared,
+            pybamm.grad,
+            pybamm.laplacian,
+            pybamm.upwind,
+            pybamm.downwind,
+        ]:
+            with pytest.raises(NotImplementedError):
+                operator(var).diff(pybamm.t)
         with pytest.raises(NotImplementedError):
-            pybamm.grad_squared(var).diff(pybamm.t)
+            pybamm.div(pybamm.grad(var)).diff(pybamm.t)
+        # independent of the child's values
+        for symbol in [
+            pybamm.Mass(var),
+            pybamm.BoundaryMass(var),
+            pybamm.DefiniteIntegralVector(var),
+            pybamm.BoundaryMeshSize(var, "right"),
+        ]:
+            assert symbol.diff(pybamm.t) == pybamm.Scalar(0)
 
     def test_printing(self):
         a = pybamm.Symbol("a", domain="test")

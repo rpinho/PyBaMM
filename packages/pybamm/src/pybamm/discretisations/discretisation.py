@@ -1190,9 +1190,15 @@ class Discretisation:
             mesh = self.mesh[symbol.children[0].domain[0]]
             if isinstance(mesh, pybamm.SubMesh1D):
                 symbol = symbol._replace(side=mesh.tabs[symbol.side])
-        return self._child_spatial_method(symbol).boundary_value_or_flux(
-            symbol, disc_children[0], self.bcs
-        )
+        spatial_method = self._child_spatial_method(symbol)
+        use_bcs = spatial_method.options["extrapolation"]["use bcs"]
+        # Boundary conditions are keyed by variable, so a time derivative has none
+        if use_bcs and symbol.child.has_symbol_of_classes(pybamm.VariableDot):
+            raise NotImplementedError(
+                "Boundary values and fluxes of time derivatives are not implemented "
+                "with the 'use bcs' extrapolation option"
+            )
+        return spatial_method.boundary_value_or_flux(symbol, disc_children[0], self.bcs)
 
     def _disc_evaluate_at(self, symbol, disc_children):
         return self._child_spatial_method(symbol).evaluate_at(

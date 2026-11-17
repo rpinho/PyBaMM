@@ -81,14 +81,19 @@ class TestCoupledVariable:
         assert a_dot.get_coupled_variable() == a
         assert a_dot.create_copy() == a_dot
         assert (2 * a).diff(pybamm.t) == 2 * a_dot
+        assert pybamm.exp(a).diff(pybamm.t) == pybamm.exp(a) * a_dot
         assert a.diff(pybamm.Variable("b")) == pybamm.Scalar(0)
         with pytest.raises(pybamm.ModelError, match=r"second time derivative"):
             a_dot.diff(pybamm.t)
 
     @pytest.mark.parametrize(
         ("expression", "threshold"),
-        [(lambda y: y, 0.25), (lambda y: -y.diff(pybamm.t), 0.5)],
-        ids=["value", "time_derivative"],
+        [
+            (lambda y: y, 0.25),
+            (lambda y: -y.diff(pybamm.t), 0.5),
+            (lambda y: -pybamm.log(y).diff(pybamm.t) * y, 0.5),
+        ],
+        ids=["value", "time_derivative", "function_time_derivative"],
     )
     def test_resolved_in_events(self, expression, threshold):
         # y = -y' = exp(-t) reaches the threshold at t = -ln(threshold)

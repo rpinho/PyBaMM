@@ -225,6 +225,31 @@ class TestDiscretise:
         np.testing.assert_array_equal(disc.bounds[0], [-np.inf] * 100)
         np.testing.assert_array_equal(disc.bounds[1], [np.inf] * 100)
 
+    def test_boundary_operator_time_derivative(self):
+        var = pybamm.Variable("var", domain="negative electrode")
+        surface_dot = pybamm.boundary_value(var, "left").diff(pybamm.t)
+        flux_dot = pybamm.BoundaryGradient(var, "right").diff(pybamm.t)
+        bcs = {var: {"left": (pybamm.t, "Dirichlet"), "right": (pybamm.t, "Neumann")}}
+        mesh = get_mesh_for_testing(xpts=5)
+
+        # extrapolating from the interior commutes with d/dt
+        disc = pybamm.Discretisation(mesh, {"macroscale": pybamm.FiniteVolume()})
+        disc.set_variable_slices([var])
+        disc.bcs = bcs
+        y_dot = np.arange(5.0)[:, np.newaxis]
+        np.testing.assert_allclose(
+            disc.process_symbol(surface_dot).evaluate(y_dot=y_dot), [[-0.5]]
+        )
+
+        # the boundary conditions of a time derivative are not available
+        options = {"extrapolation": {"use bcs": True}}
+        disc = pybamm.Discretisation(mesh, {"macroscale": pybamm.FiniteVolume(options)})
+        disc.set_variable_slices([var])
+        disc.bcs = bcs
+        for symbol in [surface_dot, flux_dot]:
+            with pytest.raises(NotImplementedError, match="use bcs"):
+                disc.process_symbol(symbol)
+
     def test_process_symbol_base(self):
         # create discretisation
         mesh = get_mesh_for_testing()

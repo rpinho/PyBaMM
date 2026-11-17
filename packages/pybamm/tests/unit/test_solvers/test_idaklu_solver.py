@@ -1811,13 +1811,13 @@ class TestIDAKLUSolver:
             pybamm.IDAKLUSolver().solve(model, [0, 5])
 
     @staticmethod
-    def _current_jump_model(events):
+    def _current_jump_model(events, jump=1.5):
         # I jumps from 0.5 to 2 at the breakpoint t = 0.2, and so does -q'
         model = pybamm.BaseModel()
         q = pybamm.Variable("q")
         current = pybamm.Variable("I")
         model.rhs = {q: -current}
-        model.algebraic = {current: current - (0.5 + 1.5 * (pybamm.t >= 0.2))}
+        model.algebraic = {current: current - (0.5 + jump * (pybamm.t >= 0.2))}
         model.initial_conditions = {q: 1, current: 0.5}
         model.variables = {"I": current}
         model.events = [
@@ -1837,18 +1837,75 @@ class TestIDAKLUSolver:
         solution = pybamm.IDAKLUSolver().solve(model, np.array([0, 0.2, 1]))
         assert solution.termination == "final time"
 
-    @pytest.mark.parametrize("output_variables", [None, ["I"]])
-    def test_state_derivative_event_violated_after_breakpoint(self, output_variables):
+    def test_event_violated_after_breakpoint_is_named(self):
+        # q' + 1 = -1 at the restart is further from zero than the other event
+        model = self._current_jump_model(
+            {
+                "dq/dt > -1": lambda q, current: q.diff(pybamm.t) + 1,
+                "always positive": lambda q, current: 0.01 + 0 * q,
+            }
+        )
+        solution = pybamm.IDAKLUSolver().solve(model, np.array([0, 0.2, 1]))
+        assert solution.termination == "event: dq/dt > -1"
+
+    @pytest.mark.parametrize(
+        ("output_variables", "options"),
+        [
+            (None, None),
+            (["I"], None),
+            (None, {"hermite_reduction_factor": 2.0}),
+            # IDA, not the Newton solver, reinitialises at the breakpoint
+            (None, {"calc_ic": False}),
+        ],
+    )
+    def test_state_derivative_event_violated_after_breakpoint(
+        self, output_variables, options
+    ):
         # q' = -2 just after the breakpoint violates q' > -1 there
         model = self._current_jump_model(
             {"dq/dt > -1": lambda q, current: q.diff(pybamm.t) + 1}
         )
-        solver = pybamm.IDAKLUSolver(output_variables=output_variables)
+        solver = pybamm.IDAKLUSolver(output_variables=output_variables, options=options)
         solution = solver.solve(model, np.array([0, 0.2, 1]))
         assert solution.termination == "event: dq/dt > -1"
         assert solution.t[-1] == pytest.approx(0.2)
         # the event state is the one after the breakpoint's reinitialisation
         np.testing.assert_allclose(solution.y_event.ravel(), [0.9, 2], rtol=1e-6)
+        # and it is the last saved point, with the state before the jump just before
+        t_event = solution.t[-1]
+        assert np.all(np.diff(solution.t) > 0)
+        np.testing.assert_allclose(solution["I"](t_event), 2, rtol=1e-6)
+        np.testing.assert_allclose(solution["I"](np.nextafter(t_event, 0)), 0.5)
+        np.testing.assert_allclose(solution.last_state["I"].entries, [2], rtol=1e-6)
+        if output_variables is None:
+            np.testing.assert_array_equal(
+                solution.all_ys[-1][:, -1], solution.y_event.ravel()
+            )
+            np.testing.assert_allclose(
+                solution.all_yps[-1][:, -1], [-2, 0], rtol=1e-6, atol=1e-8
+            )
+
+    @pytest.mark.parametrize("output_variables", [None, ["I"]])
+    def test_state_derivative_event_violated_after_breakpoint_sensitivities(
+        self, output_variables
+    ):
+        # dI/djump is 1 once the breakpoint's reinitialisation has applied the jump
+        model = self._current_jump_model(
+            {"dq/dt > -1": lambda q, current: q.diff(pybamm.t) + 1},
+            jump=pybamm.InputParameter("jump"),
+        )
+        solver = pybamm.IDAKLUSolver(output_variables=output_variables)
+        solution = solver.solve(
+            model,
+            np.array([0, 0.2, 1]),
+            inputs={"jump": 1.5},
+            calculate_sensitivities=True,
+        )
+        assert solution.termination == "event: dq/dt > -1"
+        for final in (solution, solution.last_state):
+            np.testing.assert_allclose(
+                np.ravel(final["I"].sensitivities["jump"])[-1], 1, rtol=1e-6
+            )
 
     def test_state_derivative_event_with_inputs_threads_and_sensitivities(self):
         # y' = -k y < -0.5 until y = 0.5 / k, at t = ln(2 k) / k

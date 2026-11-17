@@ -457,9 +457,12 @@ SolutionData IDAKLUSolverOpenMP<ExprSet>::solve(
     t_prev = t_val;
     // A breakpoint reinitializes IDA, so the step after it is a first step
     retval = hit_teval ? FirstStep(t_prev, tf_perturbed, t_val) : Step(tf_perturbed, t_val);
-    // An event right at the restart, whose state FirstStep restored, was saved
-    // as the breakpoint
+    // An event right at the restart fired on the state FirstStep restored, which
+    // replaces the breakpoint saved before its reinitialisation
     if (retval == IDA_ROOT_RETURN && t_val == t_prev) {
+      // Knot reduction committed that breakpoint as its last knot
+      i_save_ = (use_knot_reduction_ ? knot_reducer->GetOutputCount() : i_save_) - 1;
+      SetStep(t_val);
       break;
     }
     GetSolutionStates(t_val);
@@ -505,8 +508,8 @@ int IDAKLUSolverOpenMP<ExprSet>::FirstStep(
   if (functions->events_read_yp.empty()) {
     return Step(tout, t_val);
   }
-  // Keep the start state, which the step overwrites
-  N_VScale(SUN_RCONST(1.0), yy, y_cache);
+  // Keep IDA's start state, which IDACalcIC corrects and the step overwrites
+  CheckErrors(IDAGetConsistentIC(ida_mem, y_cache, nullptr), "IDAGetConsistentIC");
   int retval = Step(tout, t_val);
   // A step that failed before IDA took any leaves no yp at t_start
   long int number_of_steps = 0;
@@ -533,6 +536,11 @@ int IDAKLUSolverOpenMP<ExprSet>::FirstStep(
   }
   N_VScale(SUN_RCONST(1.0), y_cache, yy);
   N_VScale(SUN_RCONST(1.0), yp_cache, yyp);
+  // IDACalcIC left the sensitivities it solved at t_start inside IDA
+  if (sensitivity) {
+    CheckErrors(IDAGetSensDky(ida_mem, t_start, 0, yyS), "IDAGetSensDky");
+    CheckErrors(IDAGetSensDky(ida_mem, t_start, 1, yypS), "IDAGetSensDky");
+  }
   // IDA's root search finds only sign changes, so an event at t_start stops there
   if (at_start) {
     t_val = t_start;

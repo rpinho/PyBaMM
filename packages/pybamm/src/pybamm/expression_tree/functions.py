@@ -95,7 +95,11 @@ class Function(pybamm.Symbol):
                 if variable in child.pre_order() or (
                     variable == pybamm.t
                     and child.has_symbol_of_classes(
-                        (pybamm.VariableBase, pybamm.StateVectorBase)
+                        (
+                            pybamm.VariableBase,
+                            pybamm.StateVectorBase,
+                            pybamm.CoupledVariable,
+                        )
                     )
                 ):
                     partial_derivatives[i] = self._function_diff(

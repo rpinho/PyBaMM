@@ -1071,7 +1071,12 @@ class IDAKLUSolver(pybamm.BaseSolver):
         # Set closest_event_idx so BaseSolver.get_termination_reason doesn't
         # re-walk every event's symbolic expression on the Python side.
         if event_values is not None:
-            newsol.closest_event_idx = int(np.nanargmin(np.abs(event_values)))
+            # Prefer a triggered event: one violated at a restart can be far from zero
+            fired = event_values <= 0
+            distance = np.abs(event_values)
+            if fired.any():
+                distance = np.where(fired, distance, np.inf)
+            newsol.closest_event_idx = int(np.nanargmin(distance))
 
         newsol.integration_time = integration_time
         newsol.solver_statistics = pybamm.SolverStatistics(
